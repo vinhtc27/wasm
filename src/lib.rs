@@ -2,9 +2,11 @@ mod utils;
 
 use wasm_bindgen::prelude::*;
 
-#[wasm_bindgen]
-pub fn init_panic_hook() {
-    utils::set_panic_hook();
+#[cfg(feature = "console_error_panic_hook")]
+macro_rules! log {
+    ( $( $t:tt )* ) => {
+        web_sys::console::log_1(&format!( $( $t )* ).into());
+    }
 }
 
 #[wasm_bindgen]
@@ -70,6 +72,15 @@ impl Universe {
                 let cell = self.cells[idx];
                 let live_neighbors = self.live_neighbor_count(row, col);
 
+                #[cfg(feature = "console_error_panic_hook")]
+                log!(
+                    "cell[{}, {}] is initially {:?} and has {} live neighbors",
+                    row,
+                    col,
+                    cell,
+                    live_neighbors
+                );
+
                 let next_cell = match (cell, live_neighbors) {
                     // Rule 1: Any live cell with fewer than two live neighbours
                     // dies, as if caused by underpopulation.
@@ -87,6 +98,9 @@ impl Universe {
                     (otherwise, _) => otherwise,
                 };
 
+                #[cfg(feature = "console_error_panic_hook")]
+                log!("    it becomes {:?}", next_cell);
+
                 next[idx] = next_cell;
             }
         }
@@ -95,6 +109,8 @@ impl Universe {
     }
 
     pub fn new(width: u32, height: u32) -> Universe {
+        utils::set_panic_hook();
+
         let cells = (0..width * height)
             .map(|i| {
                 if i % 2 == 0 || i % 7 == 0 {
